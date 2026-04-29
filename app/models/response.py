@@ -29,6 +29,8 @@ class UserResponse(BaseModel):
     language_pref: Literal["English", "Urdu"]
     age: int | None = None
     sex: str | None = None
+    is_admin: bool = False
+    is_super_admin: bool = False
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

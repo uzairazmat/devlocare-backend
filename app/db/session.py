@@ -49,12 +49,55 @@ async def init_db() -> None:
         logger.info("Creating SQLite tables (if they don't exist)...")
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        await _ensure_user_role_columns()
         logger.info("SQLite database ready.")
     else:
         logger.info("Verifying database connection...")
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
+        await _ensure_user_role_columns()
         logger.info("Database connection successful.")
+
+
+async def _ensure_user_role_columns() -> None:
+    """
+    Lightweight, idempotent migration for the RBAC rollout.
+
+    `Base.metadata.create_all` does not ALTER existing tables, so legacy
+    DBs created before the role flags landed need a one-shot column add.
+    Runs on every boot but is a no-op once the columns exist — cheap
+    enough to keep until a real migration tool (Alembic) is introduced.
+    """
+    role_columns = {
+        "is_admin": "BOOLEAN NOT NULL DEFAULT 0",
+        "is_super_admin": "BOOLEAN NOT NULL DEFAULT 0",
+    }
+
+    async with engine.begin() as conn:
+        if settings.is_sqlite:
+            existing = {
+                row[1]
+                for row in (
+                    await conn.exec_driver_sql("PRAGMA table_info(users)")
+                ).all()
+            }
+        else:
+            rows = (
+                await conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'users'"
+                    )
+                )
+            ).all()
+            existing = {r[0] for r in rows}
+
+        for col, ddl in role_columns.items():
+            if col not in existing:
+                logger.info("Migration: adding users.%s", col)
+                await conn.exec_driver_sql(
+                    f"ALTER TABLE users ADD COLUMN {col} {ddl}"
+                )
 
 
 async def get_db():

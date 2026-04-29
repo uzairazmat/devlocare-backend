@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, Integer, String, Text, Float, DateTime,
+    Boolean, Column, Integer, String, Text, Float, DateTime,
     ForeignKey, CheckConstraint, Index, UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
@@ -23,6 +23,16 @@ class User(Base):
     language_pref = Column(String(10), default="English")
     age = Column(Integer)
     sex = Column(String(10))
+    # --- RBAC flags ---------------------------------------------------------
+    # `is_admin` grants access to /api/v1/admin/* routes.
+    # `is_super_admin` is a strict superset — it implies is_admin AND grants
+    # access to admin-management routes. The super admin row is created
+    # exactly once at startup from SUPER_ADMIN_* env vars (see
+    # app/services/admin/bootstrap.py); there is no API path to mint one.
+    is_admin = Column(Boolean, nullable=False, default=False, server_default="0")
+    is_super_admin = Column(
+        Boolean, nullable=False, default=False, server_default="0",
+    )
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     logs = relationship("SymptomLog", back_populates="user")

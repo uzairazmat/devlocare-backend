@@ -19,6 +19,15 @@ class Settings(BaseSettings):
 
     DEFAULT_LANGUAGE: str = "English"
 
+    # ----- Super-admin bootstrap ------------------------------------------- #
+    # The super admin is created exactly once on application startup if no
+    # row with `is_super_admin=True` exists. There is intentionally NO API
+    # endpoint to mint a super admin. To rotate, change these values and
+    # update the row directly in the DB.
+    SUPER_ADMIN_USERNAME: str = ""
+    SUPER_ADMIN_PASSWORD: str = ""
+    SUPER_ADMIN_EMAIL: str = ""
+
     @property
     def is_sqlite(self) -> bool:
         return self.DATABASE_URL.startswith("sqlite")

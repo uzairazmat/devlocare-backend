@@ -153,9 +153,17 @@ async def get_user_from_token(db: AsyncSession, token: str) -> User:
 # Internal helpers                                                             #
 # --------------------------------------------------------------------------- #
 def _build_token_response(user: User) -> TokenResponse:
+    # Role flags are embedded in the JWT so middleware/routers can perform a
+    # cheap claim check, but every admin dependency STILL re-reads the row
+    # from the DB before granting access — frontend role flags and stale
+    # tokens are never trusted as the final word.
     token = create_access_token(
         subject=user.user_id,
-        extra_claims={"username": user.username},
+        extra_claims={
+            "username": user.username,
+            "is_admin": bool(user.is_admin),
+            "is_super_admin": bool(user.is_super_admin),
+        },
     )
     return TokenResponse(
         access_token=token,
