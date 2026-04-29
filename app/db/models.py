@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     Column, Integer, String, Text, Float, DateTime,
-    ForeignKey, CheckConstraint, Index,
+    ForeignKey, CheckConstraint, Index, UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -50,7 +50,11 @@ class SymptomLog(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="logs")
-    feedback = relationship("Feedback", back_populates="log")
+    feedback = relationship(
+        "ConsultationFeedback",
+        back_populates="log",
+        cascade="all, delete-orphan",
+    )
 
 
 class DiseaseKB(Base):
@@ -70,20 +74,50 @@ class DiseaseKB(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
-class Feedback(Base):
-    __tablename__ = "feedback"
+class ConsultationFeedback(Base):
+    """
+    UC-08 — Consultation feedback table.
+
+    Stores the helpfulness rating (1-5) and optional free-text comment a
+    registered user submits after viewing a consultation result. Owns its own
+    table (``consultation_feedback``) so ``symptom_logs`` is never polluted
+    with feedback columns. One feedback row per (log_id, user_id) pair —
+    re-submissions update the existing row instead of duplicating.
+    """
+
+    __tablename__ = "consultation_feedback"
     __table_args__ = (
-        Index("idx_log_id", "log_id"),
+        UniqueConstraint(
+            "log_id", "user_id",
+            name="uq_consultation_feedback_log_user",
+        ),
+        Index("idx_consultation_feedback_log_id", "log_id"),
+        Index("idx_consultation_feedback_user_id", "user_id"),
+        Index("idx_consultation_feedback_rating", "helpfulness_rating"),
+        CheckConstraint(
+            "helpfulness_rating >= 1 AND helpfulness_rating <= 5",
+            name="ck_consultation_feedback_rating_range",
+        ),
     )
 
     feedback_id = Column(Integer, primary_key=True, autoincrement=True)
     log_id = Column(
         Integer,
         ForeignKey("symptom_logs.log_id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
     )
-    rating = Column(Integer, CheckConstraint("rating >= 1 AND rating <= 5"))
-    comments = Column(Text)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    helpfulness_rating = Column(Integer, nullable=False)
+    feedback_text = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
     log = relationship("SymptomLog", back_populates="feedback")

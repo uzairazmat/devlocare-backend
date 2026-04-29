@@ -11,3 +11,16 @@ email-validator
 bcrypt
 pyjwt
 python-multipart
+
+# --- ML / NLP (UC-01 Symptom Prediction) ---
+joblib
+scikit-learn
+numpy
+nltk
+spacy
+
+# --- Explainability (UC-04) ---
+shap
+
+# --- PDF export (UC-06 History) ---
+reportlab

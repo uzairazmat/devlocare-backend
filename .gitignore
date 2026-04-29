@@ -29,3 +29,7 @@ logs/
 alembic/versions/*.pyc
 # Added by code-review-graph
 .code-review-graph/
+
+# ML artefacts (tracked outside git — see models/README.md)
+models/*.pkl
+models/*.joblib
