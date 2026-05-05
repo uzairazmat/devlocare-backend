@@ -1,0 +1,1095 @@
+{
+  "model_type": "CalibratedClassifierCV",
+  "top_overall": [
+    {
+      "token": "chest",
+      "score": 0.2351673451857129
+    },
+    {
+      "token": "skin",
+      "score": 0.23386380907857038
+    },
+    {
+      "token": "been",
+      "score": 0.2175806523329159
+    },
+    {
+      "token": "pain",
+      "score": 0.21051008070579438
+    },
+    {
+      "token": "throat",
+      "score": 0.20504720495852405
+    },
+    {
+      "token": "is",
+      "score": 0.20298314042959376
+    },
+    {
+      "token": "headache",
+      "score": 0.19929281493186188
+    },
+    {
+      "token": "fever",
+      "score": 0.19918796841347083
+    },
+    {
+      "token": "neck",
+      "score": 0.19254978621365496
+    },
+    {
+      "token": "my skin",
+      "score": 0.1898753642937784
+    },
+    {
+      "token": "cough",
+      "score": 0.18701154721939772
+    },
+    {
+      "token": "and",
+      "score": 0.18683578307526497
+    },
+    {
+      "token": "back",
+      "score": 0.17359329934302684
+    },
+    {
+      "token": "sores",
+      "score": 0.17351492900019938
+    },
+    {
+      "token": "nose",
+      "score": 0.1707633335017725
+    },
+    {
+      "token": "are",
+      "score": 0.16986612616695673
+    },
+    {
+      "token": "it",
+      "score": 0.1665670376551619
+    },
+    {
+      "token": "chills",
+      "score": 0.16496482317487954
+    },
+    {
+      "token": "the",
+      "score": 0.16386349352615504
+    },
+    {
+      "token": "of",
+      "score": 0.16291205899221425
+    }
+  ],
+  "per_class_top": {
+    "Acne": [
+      {
+        "token": "blackheads",
+        "score": 1.0778732835906446
+      },
+      {
+        "token": "pus",
+        "score": 1.0591564513747929
+      },
+      {
+        "token": "pimples",
+        "score": 0.9022643974190585
+      },
+      {
+        "token": "skin has",
+        "score": 0.8574414166689855
+      },
+      {
+        "token": "filled",
+        "score": 0.8264852481062182
+      },
+      {
+        "token": "filled pimples",
+        "score": 0.7356169630399678
+      },
+      {
+        "token": "pus filled",
+        "score": 0.7356169630399678
+      },
+      {
+        "token": "blackheads and",
+        "score": 0.6966627893436371
+      },
+      {
+        "token": "my skin",
+        "score": 0.6129640563454817
+      },
+      {
+        "token": "rash",
+        "score": 0.5563284042835026
+      }
+    ],
+    "Arthritis": [
+      {
+        "token": "joints",
+        "score": 0.8534034949976468
+      },
+      {
+        "token": "walking has",
+        "score": 0.8417804049304232
+      },
+      {
+        "token": "walking",
+        "score": 0.8323446752476151
+      },
+      {
+        "token": "stiff",
+        "score": 0.7203278568744274
+      },
+      {
+        "token": "joints have",
+        "score": 0.6694841323435764
+      },
+      {
+        "token": "my joints",
+        "score": 0.6611930273969231
+      },
+      {
+        "token": "neck has",
+        "score": 0.5938146516424514
+      },
+      {
+        "token": "my neck",
+        "score": 0.5801577851080113
+      },
+      {
+        "token": "stiffness",
+        "score": 0.5575837034496475
+      },
+      {
+        "token": "muscles",
+        "score": 0.5356527595895049
+      }
+    ],
+    "Bronchial Asthma": [
+      {
+        "token": "cough",
+        "score": 0.9142962112393718
+      },
+      {
+        "token": "thick mucoid",
+        "score": 0.7037031095806793
+      },
+      {
+        "token": "of thick",
+        "score": 0.7037031095806793
+      },
+      {
+        "token": "mucoid",
+        "score": 0.7037031095806793
+      },
+      {
+        "token": "thick",
+        "score": 0.6792422051645317
+      },
+      {
+        "token": "fever",
+        "score": 0.6220675642857676
+      },
+      {
+        "token": "of mucus",
+        "score": 0.5986672670807636
+      },
+      {
+        "token": "up lot",
+        "score": 0.5687840307608735
+      },
+      {
+        "token": "my fever",
+        "score": 0.5408329989138818
+      },
+      {
+        "token": "breathing",
+        "score": 0.5292015152461117
+      }
+    ],
+    "Cervical spondylosis": [
+      {
+        "token": "back pain",
+        "score": 1.2123302544333008
+      },
+      {
+        "token": "back",
+        "score": 0.9700832776527788
+      },
+      {
+        "token": "weakness",
+        "score": 0.8201463393399624
+      },
+      {
+        "token": "neck",
+        "score": 0.7448226945488541
+      },
+      {
+        "token": "my neck",
+        "score": 0.7387136414708186
+      },
+      {
+        "token": "neck hurts",
+        "score": 0.678765105688426
+      },
+      {
+        "token": "cough and",
+        "score": 0.6701587043577938
+      },
+      {
+        "token": "cough",
+        "score": 0.6624706346575027
+      },
+      {
+        "token": "pain",
+        "score": 0.5686799226213867
+      },
+      {
+        "token": "limb",
+        "score": 0.48336452152608594
+      }
+    ],
+    "Chicken pox": [
+      {
+        "token": "red",
+        "score": 0.7383617825993658
+      },
+      {
+        "token": "red spots",
+        "score": 0.7233201018338008
+      },
+      {
+        "token": "spots",
+        "score": 0.6672872936731364
+      },
+      {
+        "token": "my appetite",
+        "score": 0.6361877606955512
+      },
+      {
+        "token": "over my",
+        "score": 0.6285350607262351
+      },
+      {
+        "token": "lost my",
+        "score": 0.5782651518774719
+      },
+      {
+        "token": "what",
+        "score": 0.5622810051948076
+      },
+      {
+        "token": "it",
+        "score": 0.5552859680833718
+      },
+      {
+        "token": "spots all",
+        "score": 0.5539237870347967
+      },
+      {
+        "token": "touch them",
+        "score": 0.5086434923290688
+      }
+    ],
+    "Common Cold": [
+      {
+        "token": "sneezing",
+        "score": 0.7924005831061446
+      },
+      {
+        "token": "my sinuses",
+        "score": 0.757404251082202
+      },
+      {
+        "token": "sinuses",
+        "score": 0.757404251082202
+      },
+      {
+        "token": "nose",
+        "score": 0.6405119144529341
+      },
+      {
+        "token": "smell anything",
+        "score": 0.6199984390675073
+      },
+      {
+        "token": "feels",
+        "score": 0.6178000236876527
+      },
+      {
+        "token": "congested",
+        "score": 0.6072799976017718
+      },
+      {
+        "token": "smell",
+        "score": 0.5985580711311108
+      },
+      {
+        "token": "exhausted and",
+        "score": 0.5930487427173781
+      },
+      {
+        "token": "and my",
+        "score": 0.579897507436779
+      }
+    ],
+    "Dengue": [
+      {
+        "token": "accompanied",
+        "score": 0.7694693054152693
+      },
+      {
+        "token": "back",
+        "score": 0.6772363987661967
+      },
+      {
+        "token": "pain",
+        "score": 0.6536866954839182
+      },
+      {
+        "token": "behind my",
+        "score": 0.648470285215809
+      },
+      {
+        "token": "my back",
+        "score": 0.6317208748003413
+      },
+      {
+        "token": "eyes",
+        "score": 0.6197932801720955
+      },
+      {
+        "token": "have developed",
+        "score": 0.6190333515423158
+      },
+      {
+        "token": "rashes on",
+        "score": 0.6184430059972618
+      },
+      {
+        "token": "my eyes",
+        "score": 0.6111462623761803
+      },
+      {
+        "token": "developed",
+        "score": 0.6073749504252974
+      }
+    ],
+    "Dimorphic Hemorrhoids": [
+      {
+        "token": "anus",
+        "score": 1.3365443201146299
+      },
+      {
+        "token": "my anus",
+        "score": 1.3365443201146299
+      },
+      {
+        "token": "my stool",
+        "score": 0.7113965856164469
+      },
+      {
+        "token": "stool",
+        "score": 0.7113965856164469
+      },
+      {
+        "token": "go",
+        "score": 0.6344158014817186
+      },
+      {
+        "token": "anus has",
+        "score": 0.5883094264478366
+      },
+      {
+        "token": "the restroom",
+        "score": 0.5270681798268578
+      },
+      {
+        "token": "restroom",
+        "score": 0.5270681798268578
+      },
+      {
+        "token": "when do",
+        "score": 0.5261219874071499
+      },
+      {
+        "token": "it hurts",
+        "score": 0.45898373239945045
+      }
+    ],
+    "Fungal infection": [
+      {
+        "token": "that",
+        "score": 0.948096005922036
+      },
+      {
+        "token": "some",
+        "score": 0.8629034333039749
+      },
+      {
+        "token": "my skin",
+        "score": 0.8032401559170907
+      },
+      {
+        "token": "skin",
+        "score": 0.7840697383718689
+      },
+      {
+        "token": "lumps",
+        "score": 0.6948676382729413
+      },
+      {
+        "token": "bumps",
+        "score": 0.6755442612565574
+      },
+      {
+        "token": "different",
+        "score": 0.6176464111095719
+      },
+      {
+        "token": "few",
+        "score": 0.594293778811852
+      },
+      {
+        "token": "the rest",
+        "score": 0.5866605838365555
+      },
+      {
+        "token": "that are",
+        "score": 0.581401150780924
+      }
+    ],
+    "Hypertension": [
+      {
+        "token": "chest pain",
+        "score": 1.1433515598056516
+      },
+      {
+        "token": "dizziness",
+        "score": 0.9949753408713027
+      },
+      {
+        "token": "headache",
+        "score": 0.960764836220575
+      },
+      {
+        "token": "headache chest",
+        "score": 0.9022867033138185
+      },
+      {
+        "token": "chest",
+        "score": 0.8502559593909961
+      },
+      {
+        "token": "balance",
+        "score": 0.8363195688932716
+      },
+      {
+        "token": "concentrate",
+        "score": 0.6639520209375244
+      },
+      {
+        "token": "focus",
+        "score": 0.6286460613594889
+      },
+      {
+        "token": "and dizziness",
+        "score": 0.6279949164973061
+      },
+      {
+        "token": "headache that",
+        "score": 0.5833976482521895
+      }
+    ],
+    "Impetigo": [
+      {
+        "token": "sores",
+        "score": 1.935270155518046
+      },
+      {
+        "token": "my face",
+        "score": 0.9283306449764341
+      },
+      {
+        "token": "face",
+        "score": 0.907390909076749
+      },
+      {
+        "token": "nose",
+        "score": 0.83951712019893
+      },
+      {
+        "token": "my nose",
+        "score": 0.7008166998299663
+      },
+      {
+        "token": "the sores",
+        "score": 0.5944817618113533
+      },
+      {
+        "token": "near",
+        "score": 0.5787086745158959
+      },
+      {
+        "token": "lesions",
+        "score": 0.5730392381321521
+      },
+      {
+        "token": "the rash",
+        "score": 0.5242655488346271
+      },
+      {
+        "token": "painful",
+        "score": 0.5197094461140516
+      }
+    ],
+    "Jaundice": [
+      {
+        "token": "yellow",
+        "score": 1.0637586901411353
+      },
+      {
+        "token": "weight",
+        "score": 0.9747417243046381
+      },
+      {
+        "token": "lost weight",
+        "score": 0.8765653507065408
+      },
+      {
+        "token": "stomach",
+        "score": 0.7039765146486823
+      },
+      {
+        "token": "become yellow",
+        "score": 0.6155813474870636
+      },
+      {
+        "token": "lost",
+        "score": 0.6028149639334888
+      },
+      {
+        "token": "urine",
+        "score": 0.5990400461705567
+      },
+      {
+        "token": "my urine",
+        "score": 0.47806774925874185
+      },
+      {
+        "token": "stomach pain",
+        "score": 0.45359183598455405
+      },
+      {
+        "token": "and lost",
+        "score": 0.44197733081341506
+      }
+    ],
+    "Malaria": [
+      {
+        "token": "have headache",
+        "score": 0.8909034793428464
+      },
+      {
+        "token": "nausea",
+        "score": 0.8490250774535486
+      },
+      {
+        "token": "chills",
+        "score": 0.7825077778369205
+      },
+      {
+        "token": "nausea and",
+        "score": 0.7331001148424929
+      },
+      {
+        "token": "perspiring lot",
+        "score": 0.6794074477891303
+      },
+      {
+        "token": "perspiring",
+        "score": 0.6719103493664973
+      },
+      {
+        "token": "headache",
+        "score": 0.650517322496815
+      },
+      {
+        "token": "muscle",
+        "score": 0.5898597426669044
+      },
+      {
+        "token": "headache and",
+        "score": 0.5528531726763722
+      },
+      {
+        "token": "and high",
+        "score": 0.5355598052308077
+      }
+    ],
+    "Migraine": [
+      {
+        "token": "vision",
+        "score": 0.9070270602147235
+      },
+      {
+        "token": "visual",
+        "score": 0.734707748249917
+      },
+      {
+        "token": "headaches",
+        "score": 0.7229369776137128
+      },
+      {
+        "token": "indigestion",
+        "score": 0.6840900686082001
+      },
+      {
+        "token": "stiff neck",
+        "score": 0.6769156080155483
+      },
+      {
+        "token": "acid",
+        "score": 0.6015583213453545
+      },
+      {
+        "token": "reflux",
+        "score": 0.5980930981717065
+      },
+      {
+        "token": "acid reflux",
+        "score": 0.5980930981717065
+      },
+      {
+        "token": "distorted",
+        "score": 0.5555700630094389
+      },
+      {
+        "token": "neck",
+        "score": 0.5541911264013247
+      }
+    ],
+    "Pneumonia": [
+      {
+        "token": "my heart",
+        "score": 1.25274336876948
+      },
+      {
+        "token": "heart",
+        "score": 1.215717385754508
+      },
+      {
+        "token": "phlegm",
+        "score": 0.9406702875715549
+      },
+      {
+        "token": "heart is",
+        "score": 0.8791988509526256
+      },
+      {
+        "token": "brownish",
+        "score": 0.7504123815613705
+      },
+      {
+        "token": "sweating",
+        "score": 0.6884991973636094
+      },
+      {
+        "token": "my chest",
+        "score": 0.5647340542268371
+      },
+      {
+        "token": "racing",
+        "score": 0.54487884338149
+      },
+      {
+        "token": "coughing",
+        "score": 0.5435430667089169
+      },
+      {
+        "token": "mucous",
+        "score": 0.5382088249431042
+      }
+    ],
+    "Psoriasis": [
+      {
+        "token": "nails",
+        "score": 0.9397479165080668
+      },
+      {
+        "token": "my nails",
+        "score": 0.9397479165080668
+      },
+      {
+        "token": "peeling",
+        "score": 0.8115829833188487
+      },
+      {
+        "token": "dents",
+        "score": 0.6679412290064716
+      },
+      {
+        "token": "skin",
+        "score": 0.6386439114972746
+      },
+      {
+        "token": "knees",
+        "score": 0.5116426755275902
+      },
+      {
+        "token": "peel",
+        "score": 0.5080556750635641
+      },
+      {
+        "token": "peel off",
+        "score": 0.5080556750635641
+      },
+      {
+        "token": "skin on",
+        "score": 0.5030419008986999
+      },
+      {
+        "token": "dusting",
+        "score": 0.4981362554711268
+      }
+    ],
+    "Typhoid": [
+      {
+        "token": "constipation",
+        "score": 1.1560035537938433
+      },
+      {
+        "token": "diarrhea",
+        "score": 1.0985446579568723
+      },
+      {
+        "token": "belly",
+        "score": 0.8434891473861563
+      },
+      {
+        "token": "which has",
+        "score": 0.7688687512670931
+      },
+      {
+        "token": "and constipation",
+        "score": 0.7179697822139134
+      },
+      {
+        "token": "abdominal",
+        "score": 0.7095791306243403
+      },
+      {
+        "token": "stomach",
+        "score": 0.6940449649978421
+      },
+      {
+        "token": "constipation and",
+        "score": 0.669374077758458
+      },
+      {
+        "token": "vomiting",
+        "score": 0.6178154205947732
+      },
+      {
+        "token": "belly pain",
+        "score": 0.585675001594145
+      }
+    ],
+    "Varicose Veins": [
+      {
+        "token": "my legs",
+        "score": 1.5127988472585245
+      },
+      {
+        "token": "legs",
+        "score": 1.2182020542361924
+      },
+      {
+        "token": "calves",
+        "score": 0.9386749853253427
+      },
+      {
+        "token": "my calves",
+        "score": 0.9386749853253427
+      },
+      {
+        "token": "veins",
+        "score": 0.8812838903592265
+      },
+      {
+        "token": "the veins",
+        "score": 0.6127875750507435
+      },
+      {
+        "token": "causing",
+        "score": 0.5719353548157169
+      },
+      {
+        "token": "vessels",
+        "score": 0.554545431290393
+      },
+      {
+        "token": "blood vessels",
+        "score": 0.554545431290393
+      },
+      {
+        "token": "cramps",
+        "score": 0.5409146635758791
+      }
+    ],
+    "allergy": [
+      {
+        "token": "eyes",
+        "score": 0.8410906865624505
+      },
+      {
+        "token": "sore throat",
+        "score": 0.6966708422839047
+      },
+      {
+        "token": "occasionally",
+        "score": 0.684978648691082
+      },
+      {
+        "token": "have sore",
+        "score": 0.6458987498493706
+      },
+      {
+        "token": "throat",
+        "score": 0.6296462516797918
+      },
+      {
+        "token": "asthma",
+        "score": 0.5882456334327578
+      },
+      {
+        "token": "lips",
+        "score": 0.5585530646997185
+      },
+      {
+        "token": "wheezing",
+        "score": 0.5581406924299286
+      },
+      {
+        "token": "throat and",
+        "score": 0.5442615164922635
+      },
+      {
+        "token": "sore",
+        "score": 0.5222415226877111
+      }
+    ],
+    "diabetes": [
+      {
+        "token": "infections",
+        "score": 0.8506393720301813
+      },
+      {
+        "token": "palpitations",
+        "score": 0.7910883545582083
+      },
+      {
+        "token": "have palpitations",
+        "score": 0.5197973859457705
+      },
+      {
+        "token": "be",
+        "score": 0.49492000146412496
+      },
+      {
+        "token": "both",
+        "score": 0.4912151149322164
+      },
+      {
+        "token": "irritations",
+        "score": 0.48257177746374147
+      },
+      {
+        "token": "to be",
+        "score": 0.4818357898313641
+      },
+      {
+        "token": "my vision",
+        "score": 0.4812249217590872
+      },
+      {
+        "token": "especially",
+        "score": 0.4635730371299921
+      },
+      {
+        "token": "increased",
+        "score": 0.46291930945089277
+      }
+    ],
+    "drug reaction": [
+      {
+        "token": "hair",
+        "score": 0.8022979378111593
+      },
+      {
+        "token": "sex",
+        "score": 0.661230406050514
+      },
+      {
+        "token": "brain",
+        "score": 0.6133157292950728
+      },
+      {
+        "token": "migraines",
+        "score": 0.5540785908218557
+      },
+      {
+        "token": "start to",
+        "score": 0.5422994890621434
+      },
+      {
+        "token": "brain fog",
+        "score": 0.5334162981060093
+      },
+      {
+        "token": "fog",
+        "score": 0.5334162981060093
+      },
+      {
+        "token": "chest",
+        "score": 0.5315316510432793
+      },
+      {
+        "token": "severe nausea",
+        "score": 0.5050004673435755
+      },
+      {
+        "token": "tremble",
+        "score": 0.4998408451271583
+      }
+    ],
+    "gastroesophageal reflux disease": [
+      {
+        "token": "throat",
+        "score": 0.8412581335713
+      },
+      {
+        "token": "my throat",
+        "score": 0.7621203574510931
+      },
+      {
+        "token": "after",
+        "score": 0.7362751571556542
+      },
+      {
+        "token": "eating",
+        "score": 0.709099485907159
+      },
+      {
+        "token": "heartburn",
+        "score": 0.6854049040135899
+      },
+      {
+        "token": "after eating",
+        "score": 0.6847069004843486
+      },
+      {
+        "token": "in my",
+        "score": 0.5663277536149481
+      },
+      {
+        "token": "or",
+        "score": 0.551494777174946
+      },
+      {
+        "token": "sour",
+        "score": 0.5502275685809279
+      },
+      {
+        "token": "especially after",
+        "score": 0.5262281122644437
+      }
+    ],
+    "peptic ulcer disease": [
+      {
+        "token": "stools",
+        "score": 1.026955448349889
+      },
+      {
+        "token": "bloating",
+        "score": 0.7555556926235094
+      },
+      {
+        "token": "gas",
+        "score": 0.5990490958807002
+      },
+      {
+        "token": "acidic",
+        "score": 0.5216315506145668
+      },
+      {
+        "token": "weight",
+        "score": 0.5207873812102606
+      },
+      {
+        "token": "or",
+        "score": 0.5195627074532403
+      },
+      {
+        "token": "upper abdomen",
+        "score": 0.518458381784761
+      },
+      {
+        "token": "my upper",
+        "score": 0.518458381784761
+      },
+      {
+        "token": "upper",
+        "score": 0.518458381784761
+      },
+      {
+        "token": "bloated",
+        "score": 0.5126964531569688
+      }
+    ],
+    "urinary tract infection": [
+      {
+        "token": "pee",
+        "score": 1.5349044750729175
+      },
+      {
+        "token": "my pee",
+        "score": 1.0212099235859629
+      },
+      {
+        "token": "urinate",
+        "score": 0.9209659987847365
+      },
+      {
+        "token": "urine",
+        "score": 0.84159183577554
+      },
+      {
+        "token": "low",
+        "score": 0.7982484737427317
+      },
+      {
+        "token": "urges",
+        "score": 0.6608104926146089
+      },
+      {
+        "token": "blood in",
+        "score": 0.6080924025276029
+      },
+      {
+        "token": "temperatures",
+        "score": 0.5886338588325721
+      },
+      {
+        "token": "to urinate",
+        "score": 0.5833255719225201
+      },
+      {
+        "token": "urges to",
+        "score": 0.558850189898121
+      }
+    ]
+  }
+}
