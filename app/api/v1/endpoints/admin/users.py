@@ -13,19 +13,53 @@ bootstrap (see ``app/services/admin/bootstrap.py``).
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.admin_deps import require_super_admin
 from app.core.logging import get_logger
 from app.db.models import User
 from app.db.session import get_db
-from app.models.admin import CreateAdminRequest
+from app.models.admin import (
+    AdminUserListResponse,
+    CreateAdminRequest,
+    UserRoleFilter,
+)
 from app.models.response import UserResponse
 from app.services.admin import user_admin_service
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["Admin · User Management"])
+
+
+@router.get(
+    "",
+    response_model=AdminUserListResponse,
+    summary="List users (super admin only)",
+    description=(
+        "Paginated list of every user on the platform. Filter by ``role`` "
+        "(``admins`` includes super admins; ``users`` is non-admins only) "
+        "and/or a case-insensitive ``search`` substring on username or email."
+    ),
+)
+async def list_users(
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    role: UserRoleFilter | None = Query(
+        default=None,
+        description="`admins` (admins + super admins) or `users` (everyone else).",
+    ),
+    search: str | None = Query(
+        default=None,
+        max_length=100,
+        description="Case-insensitive substring match on username or email.",
+    ),
+    actor: User = Depends(require_super_admin),
+    db: AsyncSession = Depends(get_db),
+) -> AdminUserListResponse:
+    return await user_admin_service.list_users(
+        db, limit=limit, offset=offset, role=role, search=search,
+    )
 
 
 @router.post(

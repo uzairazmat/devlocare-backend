@@ -18,6 +18,9 @@ SeverityLiteral = Literal["mild", "moderate", "severe"]
 # --------------------------------------------------------------------------- #
 # Auth                                                                         #
 # --------------------------------------------------------------------------- #
+_USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{3,50}$")
+
+
 class UserRegisterRequest(BaseModel):
     """Payload for POST /auth/register."""
 
@@ -33,9 +36,12 @@ class UserRegisterRequest(BaseModel):
     @field_validator("username")
     @classmethod
     def _username_chars(cls, v: str) -> str:
-        if not all(c.isalnum() or c in {"_", "-", "."} for c in v):
+        if any(c.isspace() for c in v):
+            raise ValueError("Username cannot contain spaces")
+        if not _USERNAME_PATTERN.match(v):
             raise ValueError(
-                "username may contain only letters, digits, '_', '-', '.'"
+                "Username may contain only letters, digits, '_', '-', '.' "
+                "and must be 3-50 characters long"
             )
         return v
 

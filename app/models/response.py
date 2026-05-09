@@ -152,6 +152,13 @@ class PredictionResponse(BaseModel):
     log_id: int | None = None
     language: LanguageLiteral = "English"
 
+    # Populated by GET /history/{log_id} so the detail screen can show the
+    # original input + when the consultation was saved without a second call.
+    # Always None on the live POST /predict/text response (the client already
+    # has the raw text in hand and there's no created_at yet).
+    raw_text: str | None = None
+    created_at: datetime | None = None
+
     top_conditions: list[TopCondition]
 
     triage_level: TriageLevel

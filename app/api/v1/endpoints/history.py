@@ -340,6 +340,8 @@ def _hydrate_prediction(row: SymptomLog) -> PredictionResponse:
     return PredictionResponse(
         log_id=row.log_id,
         language=language,
+        raw_text=row.raw_text,
+        created_at=row.created_at,
         top_conditions=top_conditions,
         triage_level=triage,
         recommended_specialist=primary.specialist_type if primary else None,

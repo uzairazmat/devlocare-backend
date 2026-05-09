@@ -29,7 +29,7 @@ from app.core.exceptions import (
 from app.core.logging import get_logger
 from app.core.security import get_password_hash
 from app.db.models import User
-from app.models.admin import CreateAdminRequest
+from app.models.admin import AdminUserListResponse, CreateAdminRequest
 from app.models.response import UserResponse
 from app.repositories import user_repo
 
@@ -148,6 +148,34 @@ async def demote_from_admin(
         actor.user_id, actor.username, target.user_id, target.username,
     )
     return UserResponse.model_validate(target)
+
+
+# --------------------------------------------------------------------------- #
+# List                                                                         #
+# --------------------------------------------------------------------------- #
+async def list_users(
+    db: AsyncSession,
+    *,
+    limit: int,
+    offset: int,
+    role: str | None = None,
+    search: str | None = None,
+) -> AdminUserListResponse:
+    """
+    Paginated list of users for the super-admin Users screen.
+    """
+    rows, total = await user_repo.list_users(
+        db, limit=limit, offset=offset, role=role, search=search,
+    )
+    items = [UserResponse.model_validate(row) for row in rows]
+    has_more = (offset + len(items)) < total
+    return AdminUserListResponse(
+        items=items,
+        total=total,
+        has_more=has_more,
+        limit=limit,
+        offset=offset,
+    )
 
 
 # --------------------------------------------------------------------------- #

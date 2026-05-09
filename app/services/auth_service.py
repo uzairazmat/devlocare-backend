@@ -4,6 +4,7 @@ Authentication & user management service layer.
 All domain logic (hashing, validation, uniqueness checks) lives here so
 the API layer stays thin and testable.
 """
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -68,7 +69,29 @@ async def register_user(
         sex=payload.sex,
         language_pref=payload.language_pref,
     )
-    new_user = await user_repo.create(db, new_user)
+    try:
+        new_user = await user_repo.create(db, new_user)
+    except IntegrityError as exc:
+        # Race: a duplicate slipped past the pre-check (or a unique
+        # constraint we don't pre-screen). Translate the DB 500 into a
+        # clean 409 so the frontend can map it to the right form field.
+        await db.rollback()
+        msg = str(exc.orig).lower() if exc.orig else str(exc).lower()
+        if "email" in msg:
+            raise ConflictError(
+                message=f"Email '{payload.email}' is already registered",
+                code="email_taken",
+            ) from exc
+        if "username" in msg:
+            raise ConflictError(
+                message=f"Username '{payload.username}' is already taken",
+                code="username_taken",
+            ) from exc
+        raise ConflictError(
+            message="Username or email already taken",
+            code="user_already_exists",
+        ) from exc
+
     logger.info("User registered successfully: user_id=%s", new_user.user_id)
 
     return _build_token_response(new_user)

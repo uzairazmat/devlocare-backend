@@ -272,7 +272,7 @@ def _compute_triage(
         3. Age <5 or >65 with severity moderate/severe
                                             →  urgent_care
         4. Chronic disease + severity=severe →  urgent_care
-        5. KB triage_category == urgent_care →  urgent_care
+        5. KB triage_category == urgent_care →  urgent_carex`
         6. Severity=severe                  →  urgent_care
         7. KB triage_category == see_gp     →  see_gp
         8. Severity=moderate                →  see_gp

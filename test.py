@@ -7,8 +7,7 @@ import time
 # ================================
 API_URL = "http://192.168.100.29:8000/api/v1/predict/text"
 
-TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1IiwiaWF0IjoxNzc3OTI4NTk5LCJleHAiOjE3Nzc5NTczOTksInR5cGUiOiJhY2Nlc3MiLCJ1c2VybmFtZSI6InN1cGVyYWRtaW4iLCJpc19hZG1pbiI6dHJ1ZSwiaXNfc3VwZXJfYWRtaW4iOnRydWV9.Le6SWhBOOJX1N9dHLmTlfbVt5NkL2PuW2EVBUppc6uQ"
-
+TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0IiwiaWF0IjoxNzc4MzQyMzM0LCJleHAiOjE3NzgzNzExMzQsInR5cGUiOiJhY2Nlc3MiLCJ1c2VybmFtZSI6InN0cmluZyIsImlzX2FkbWluIjpmYWxzZSwiaXNfc3VwZXJfYWRtaW4iOmZhbHNlfQ.cOfwYBV-FY79jO7S0ILb5OwcZMZhATWQrnYR20NhIS8"
 HEADERS = {
     "Authorization": TOKEN,
     "Content-Type": "application/json"
@@ -102,7 +101,7 @@ for i, case in enumerate(test_cases, 1):
 # ================================
 # SAVE FILE
 # ================================
-with open("devlocare_audit_results.json", "w", encoding="utf-8") as f:
+with open("devlocare_audit_results2.json", "w", encoding="utf-8") as f:
     json.dump(results, f, indent=4, ensure_ascii=False)
 
 print("\nDONE. Saved to devlocare_audit_results.json")
