@@ -5,14 +5,30 @@ import time
 # ================================
 # CONFIG
 # ================================
-API_URL = "http://192.168.100.29:8000/api/v1/predict/text"
+BASE_URL = "http://127.0.0.1:8000/api/v1"
+USERNAME = "user@example.com"
+PASSWORD = "stringst"
 
-TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0IiwiaWF0IjoxNzc4MzQyMzM0LCJleHAiOjE3NzgzNzExMzQsInR5cGUiOiJhY2Nlc3MiLCJ1c2VybmFtZSI6InN0cmluZyIsImlzX2FkbWluIjpmYWxzZSwiaXNfc3VwZXJfYWRtaW4iOmZhbHNlfQ.cOfwYBV-FY79jO7S0ILb5OwcZMZhATWQrnYR20NhIS8"
+# ================================
+# LOGIN — get a fresh token
+# ================================
+print("Logging in...")
+login_resp = requests.post(
+    f"{BASE_URL}/auth/login",
+    json={"username_or_email": USERNAME, "password": PASSWORD},
+    timeout=10,
+)
+if login_resp.status_code != 200:
+    print("Login failed:", login_resp.status_code, login_resp.text)
+    exit(1)
+
+token = login_resp.json()["access_token"]
 HEADERS = {
-    "Authorization": TOKEN,
-    "Content-Type": "application/json"
+    "Authorization": f"Bearer {token}",
+    "Content-Type": "application/json",
 }
-print("SCRIPT STARTED")
+print("Login successful.\n")
+
 # ================================
 # TEST DATASET
 # ================================
@@ -40,20 +56,14 @@ test_cases = [
     {"expected":"Psoriasis","text":"Thick silvery skin patches on elbows with itching","age":37,"sex":"Female","duration":"6 months","severity":"mild"},
     {"expected":"Typhoid","text":"I have continuous fever with stomach pain and weakness","age":31,"sex":"Male","duration":"6 days","severity":"severe"},
     {"expected":"Urinary Tract Infection","text":"Burning urine with lower belly pain and frequent urination","age":26,"sex":"Female","duration":"3 days","severity":"moderate"},
-    {"expected":"Varicose Veins","text":"I have swollen twisted blue veins in my legs with aching","age":46,"sex":"Female","duration":"8 months","severity":"moderate"}
+    {"expected":"Varicose Veins","text":"I have swollen twisted blue veins in my legs with aching","age":46,"sex":"Female","duration":"8 months","severity":"moderate"},
 ]
-
-print("SCRIPT STARTED")
-
-print("TEST CASES LOADED")
-
-
-
 
 # ================================
 # RUN AUDIT
 # ================================
 results = []
+correct = 0
 
 for i, case in enumerate(test_cases, 1):
     payload = {
@@ -63,45 +73,63 @@ for i, case in enumerate(test_cases, 1):
         "duration": case["duration"],
         "severity": case["severity"],
         "pregnancy": False,
-        "chronic_disease": ""
+        "chronic_disease": "",
     }
 
-    print(f"\n[{i}/24] Testing: {case['expected']}")
-    print("Query:", case["text"])
+    print(f"[{i}/24] {case['expected']}")
 
     try:
-        response = requests.post(API_URL, headers=HEADERS, json=payload, timeout=30)
+        response = requests.post(
+            f"{BASE_URL}/predict/text", headers=HEADERS, json=payload, timeout=30
+        )
         data = response.json()
 
-        result = {
-            "expected": case["expected"],
-            "query": case["text"],
-            "response": data
-        }
+        top_conditions = data.get("top_conditions", [])
+        top_names = [c.get("name_en") or c.get("name", "") for c in top_conditions]
+        top1 = top_names[0] if top_names else "—"
+        hit = case["expected"].lower() in [n.lower() for n in top_names]
+        if hit:
+            correct += 1
 
-        results.append(result)
+        print(f"  Expected : {case['expected']}")
+        print(f"  Top-3    : {top_names}")
+        print(f"  Match    : {'YES' if hit else 'NO'}")
 
-        # quick console summary
-        top = data.get("top_predictions", [])
-        if top:
-            print("Top Returned:", top[0])
-        else:
-            print("No top_predictions found")
-
-    except Exception as e:
-        print("ERROR:", str(e))
         results.append({
             "expected": case["expected"],
             "query": case["text"],
-            "error": str(e)
+            "top1_returned": top1,
+            "top3_returned": top_names,
+            "top3_hit": hit,
+            "status_code": response.status_code,
         })
 
-    time.sleep(1)
+    except Exception as e:
+        print(f"  ERROR: {e}")
+        results.append({
+            "expected": case["expected"],
+            "query": case["text"],
+            "error": str(e),
+        })
+
+    time.sleep(0.5)
+
+# ================================
+# SUMMARY
+# ================================
+total = len(test_cases)
+print(f"\n{'='*40}")
+print(f"Top-3 accuracy: {correct}/{total} = {correct/total*100:.1f}%")
+print(f"{'='*40}\n")
 
 # ================================
 # SAVE FILE
 # ================================
-with open("devlocare_audit_results2.json", "w", encoding="utf-8") as f:
-    json.dump(results, f, indent=4, ensure_ascii=False)
+output = {
+    "summary": {"total": total, "top3_correct": correct, "top3_accuracy_pct": round(correct/total*100, 1)},
+    "results": results,
+}
+with open("devlocare_audit_results.json", "w", encoding="utf-8") as f:
+    json.dump(output, f, indent=4, ensure_ascii=False)
 
-print("\nDONE. Saved to devlocare_audit_results.json")
+print("Saved to devlocare_audit_results2.json")

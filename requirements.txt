@@ -19,6 +19,7 @@ scikit-learn
 numpy
 nltk
 spacy
+sentence-transformers
 
 # --- Explainability (UC-04) ---
 shap

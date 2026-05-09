@@ -1,33 +1,27 @@
 """
 NLP preprocessing for UC-01 Symptom Prediction.
 
-Pipeline stages (per project flow):
+Pipeline stages:
     1.  clean_text()        — lowercase, strip noise, tokenize, remove stopwords
     2.  extract_symptoms()  — spaCy matcher over a small symptom lexicon
-    3.  vectorize_text()    — TF-IDF vectorisation (reuses the trained vectorizer
-                              when available so features line up exactly with the
-                              one used at training time).
 
-All heavy resources (NLTK stopwords, spaCy model, TF-IDF vectorizer) are loaded
-lazily on first call and cached.  Failures degrade gracefully — e.g. if NLTK
-data isn't present we fall back to an in-file stopword list rather than 500ing.
+All heavy resources (NLTK stopwords, spaCy model) are loaded lazily on first
+call and cached. Failures degrade gracefully — e.g. if NLTK data isn't present
+we fall back to an in-file stopword list rather than 500ing.
+
+TF-IDF vectorisation lived here previously; the pipeline now uses
+sentence-transformers embeddings (see ``app.clients.ml_client``), so cleaned
+text and extracted symptoms are the only outputs consumed downstream.
 """
 from __future__ import annotations
 
 import re
 import threading
-from pathlib import Path
 from typing import Any
 
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-
-# --------------------------------------------------------------------------- #
-# Paths / constants                                                            #
-# --------------------------------------------------------------------------- #
-_MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
-_VECTORIZER_PATH = _MODELS_DIR / "vectorizer.pkl"
 
 # Small but usable fallback list if NLTK data is unavailable.
 _FALLBACK_STOPWORDS: frozenset[str] = frozenset({
@@ -78,7 +72,6 @@ _SYMPTOM_LEXICON: dict[str, list[list[dict[str, Any]]]] = {
 _SYMPTOM_REGEX: dict[str, re.Pattern[str]] = {
     label: re.compile(
         r"\b(" + "|".join(
-            # Reconstruct raw phrase from the token patterns
             " ".join(tok.get("LOWER", "") for tok in pat) for pat in patterns
         ) + r")\b",
         flags=re.IGNORECASE,
@@ -93,8 +86,6 @@ _lock = threading.Lock()
 _stopwords: frozenset[str] | None = None
 _nlp: Any = None                 # spaCy Language, or None if unavailable
 _matcher: Any = None             # spaCy Matcher, or None
-_vectorizer: Any = None          # trained TF-IDF vectorizer, or None
-_vectorizer_loaded: bool = False
 
 
 _WORD_RE = re.compile(r"[a-z]+(?:'[a-z]+)?")
@@ -146,8 +137,6 @@ def _get_spacy() -> tuple[Any, Any]:
             try:
                 nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
             except Exception:
-                # Use a blank pipeline if the model isn't installed - Matcher
-                # only needs a vocab + tokenizer, both of which blank() provides.
                 logger.warning(
                     "spaCy model 'en_core_web_sm' not found — using blank English pipeline."
                 )
@@ -168,34 +157,6 @@ def _get_spacy() -> tuple[Any, Any]:
     return _nlp, _matcher
 
 
-def _get_vectorizer() -> Any:
-    """Load the trained TF-IDF vectorizer lazily. May return None."""
-    global _vectorizer, _vectorizer_loaded
-    if _vectorizer_loaded:
-        return _vectorizer
-
-    with _lock:
-        if _vectorizer_loaded:
-            return _vectorizer
-        _vectorizer_loaded = True
-
-        if not _VECTORIZER_PATH.exists():
-            logger.info(
-                "No standalone vectorizer.pkl at %s — relying on the pipeline "
-                "inside model.pkl (if any).", _VECTORIZER_PATH,
-            )
-            return None
-        try:
-            import joblib  # type: ignore
-
-            _vectorizer = joblib.load(_VECTORIZER_PATH)
-            logger.info("TF-IDF vectorizer loaded from %s.", _VECTORIZER_PATH)
-        except Exception:  # noqa: BLE001
-            logger.exception("Failed to load %s — returning None.", _VECTORIZER_PATH)
-            _vectorizer = None
-    return _vectorizer
-
-
 # --------------------------------------------------------------------------- #
 # Public API                                                                   #
 # --------------------------------------------------------------------------- #
@@ -203,7 +164,7 @@ def clean_text(text: str) -> str:
     """
     Lowercase the input, drop non-letter characters, tokenize and remove
     English stopwords. Returns a space-joined clean string suitable for
-    downstream TF-IDF vectorization.
+    downstream embedding.
     """
     if not text:
         return ""
@@ -244,15 +205,3 @@ def extract_symptoms(text: str) -> list[str]:
             seen.add(label)
             found.append(label)
     return found
-
-
-def vectorize_text(text: str):
-    """
-    Vectorize cleaned text using the TF-IDF vectorizer from training. If no
-    standalone vectorizer is available, returns `None` — callers should then
-    feed raw (cleaned) text into a full sklearn Pipeline instead.
-    """
-    vec = _get_vectorizer()
-    if vec is None:
-        return None
-    return vec.transform([text])
