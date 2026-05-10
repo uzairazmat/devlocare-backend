@@ -61,6 +61,7 @@ from app.repositories import log_repo
 from app.services import kb_service, preprocess_service
 from app.services.explain_service import get_explain_service
 from app.services.kb_service import LocalizedDisease
+from app.utils.confidence_utils import get_calibrated_confidence
 from app.utils.followups import pick_followup_question
 
 logger = get_logger(__name__)
@@ -89,6 +90,15 @@ _AGE_VULNERABLE_UPPER = 65
 
 _FINAL_ASSISTANT_MESSAGE = "I have enough information. Here is your assessment."
 _USER_TEXT_JOINER = " . "
+
+# Out-of-domain guard. The classifier always emits *some* top class — even
+# for "hey" or "ok thanks" — so without a guard a non-medical greeting can
+# slip past the gate and earn a confident-looking diagnosis. We treat input
+# as out-of-domain when the symptom extractor finds nothing AND the cleaned
+# text is below this token count. Anything above the threshold is allowed
+# through to the classifier even with zero extracted symptoms (some
+# legitimate descriptions don't contain the exact tokens spaCy looks for).
+_MIN_TOKENS_FOR_CLASSIFICATION = 5
 
 
 # --------------------------------------------------------------------------- #
@@ -135,28 +145,57 @@ async def predict_from_text(
     # admin / PDF readers see the full conversation context.
     log.raw_text = _join_user_db_text(history)
 
-    # ---- 5. ML prediction ------------------------------------------------ #
-    raw_predictions = await ml_client.predict_top_k(
-        cleaned_text or combined_ml_text, k=3
-    )
-    top_confidence = float(raw_predictions[0]["confidence"]) if raw_predictions else 0.0
-    logger.info(
-        "ML: %s (stub_mode=%s top=%.3f threshold=%.3f)",
-        [(p["condition"], round(p["confidence"], 3)) for p in raw_predictions],
-        ml_client.is_stub(),
-        top_confidence,
-        settings.PREDICTION_CONFIDENCE_THRESHOLD,
+    # ---- 5. Out-of-domain guard ----------------------------------------- #
+    # Skip the classifier entirely for non-medical input. Without this, a
+    # bare "hey" or "ok thanks" would still produce a top-1 raw probability
+    # ≥ 0.45 (the classifier has no "I don't know" output) and get boosted
+    # to a confident-looking 80 %+ by calibration.
+    text_for_classifier = cleaned_text or combined_ml_text
+    token_count = len(text_for_classifier.split())
+    if not extracted_symptoms and token_count < _MIN_TOKENS_FOR_CLASSIFICATION:
+        return await _ask_followup(
+            db=db,
+            log=log,
+            history=history,
+            asked_so_far=_assistant_questions(history),
+            language=language,
+            confidence_status=ConfidenceStatus(
+                current_topk=0.0,
+                required_topk=settings.PREDICTION_CONFIDENCE_THRESHOLD,
+            ),
+        )
+
+    # ---- 6. ML prediction ------------------------------------------------ #
+    raw_predictions = await ml_client.predict_top_k(text_for_classifier, k=3)
+
+    # ---- 7. Overwrite raw confidences with calibrated values ------------- #
+    # From this point on, ``raw_predictions`` carries calibrated probabilities
+    # only — every downstream consumer (gate check, LIME rationale,
+    # TopCondition models, persisted explanation_json, confidence_status
+    # snapshot, API response) reads through this list, so a single overwrite
+    # makes the calibrated value the single source of truth.
+    for prediction in raw_predictions:
+        prediction["confidence"] = get_calibrated_confidence(
+            float(prediction["confidence"])
+        )
+
+    top_confidence = (
+        float(raw_predictions[0]["confidence"]) if raw_predictions else 0.0
     )
 
-    # ---- 6. Threshold branch --------------------------------------------- #
-    # Confidence is the SOLE gate. Stay in chat mode until the classifier
-    # crosses the configured threshold — no hardcoded round cap.
+    # ---- 8. Threshold branch --------------------------------------------- #
+    # The env value lives in *calibrated* space — used as-is, no mapping.
+    # If PREDICTION_CONFIDENCE_THRESHOLD=0.80 the gate fires at calibrated
+    # 80 %; if it's 0.40 the gate fires at calibrated 40 %. Same value the
+    # client sees in ``required_topk`` below.
+    needs_followup = top_confidence < settings.PREDICTION_CONFIDENCE_THRESHOLD
+
     confidence_status = ConfidenceStatus(
         current_topk=top_confidence,
         required_topk=settings.PREDICTION_CONFIDENCE_THRESHOLD,
     )
 
-    if top_confidence < settings.PREDICTION_CONFIDENCE_THRESHOLD:
+    if needs_followup:
         return await _ask_followup(
             db=db,
             log=log,
