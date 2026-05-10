@@ -101,16 +101,24 @@ async def predict_from_text(
         getattr(user, "language_pref", None),
     )
 
-    # ---- 2-3. Preprocess + extract symptoms ------------------------------ #
-    cleaned_text = preprocess_service.clean_text(payload.text)
-    extracted_symptoms = preprocess_service.extract_symptoms(payload.text)
+    # ---- 2. PII redaction (dual output) ---------------------------------- #
+    # ml_text feeds the SentenceTransformer + classifier + LIME explainer
+    # (PII dropped, no placeholder token to avoid biasing the embedding).
+    # db_text is what we persist on `symptom_logs.raw_text` so admin reviewers
+    # see that PII *was* present without seeing the actual values.
+    ml_text, db_text = preprocess_service.redact_pii(payload.text)
+    logger.debug("PII redaction: db_len=%d ml_len=%d", len(db_text), len(ml_text))
+
+    # ---- 3. NLP preprocess + extract symptoms ---------------------------- #
+    cleaned_text = preprocess_service.clean_text(ml_text)
+    extracted_symptoms = preprocess_service.extract_symptoms(ml_text)
     logger.debug(
         "NLP: cleaned=%r extracted_symptoms=%s", cleaned_text, extracted_symptoms,
     )
 
     # ---- 4. ML prediction ------------------------------------------------ #
     raw_predictions = await ml_client.predict_top_k(
-        cleaned_text or payload.text, k=3
+        cleaned_text or ml_text, k=3
     )
     logger.info(
         "ML: %s (stub_mode=%s)",
@@ -139,9 +147,13 @@ async def predict_from_text(
     primary_kb = kb_index.get(english_names[0].lower()) if english_names else None
 
     # ---- 6. Smart triage (UC-03) ----------------------------------------- #
+    # Triage keyword matching runs against the redacted ml_text so that the
+    # raw PII-bearing string never propagates past the redaction step. None
+    # of the critical keywords overlap with PII patterns, so redaction can't
+    # remove them.
     triage_level, triage_rule = _compute_triage(
         payload=payload,
-        text_lower=payload.text.lower(),
+        text_lower=ml_text.lower(),
         extracted_symptoms=extracted_symptoms,
         kb_entry=primary_kb,
     )
@@ -155,11 +167,11 @@ async def predict_from_text(
     )
 
     # ---- 7. Explainability (UC-04) --------------------------------------- #
-    vectorizer, classifier = ml_client.get_explainer_artefacts()
+    embedder, classifier = ml_client.get_explainer_artefacts()
     explain_payload = await get_explain_service().get_explanation(
-        text=cleaned_text or payload.text,
+        text=ml_text,
         top_predictions=raw_predictions,
-        vectorizer=vectorizer,
+        vectorizer=embedder,
         model=classifier,
         language=language,
         extracted_symptoms=extracted_symptoms,
@@ -180,6 +192,7 @@ async def predict_from_text(
         db=db,
         user_id=getattr(user, "user_id", None),
         payload=payload,
+        db_text=db_text,
         top_conditions=top_conditions,
         triage_level=triage_level,
         triage_rule=triage_rule,
@@ -390,6 +403,7 @@ async def _persist_log(
     db: AsyncSession,
     user_id: int | None,
     payload: SymptomTextRequest,
+    db_text: str,
     top_conditions: list[TopCondition],
     triage_level: TriageLevel,
     triage_rule: str,
@@ -399,6 +413,10 @@ async def _persist_log(
 ) -> SymptomLog:
     """
     Store the request + prediction bundle in `symptom_logs`.
+
+    ``db_text`` is the PII-redacted form of ``payload.text`` (with
+    ``[REDACTED]`` placeholders) — never the raw input — so admin reviewers
+    can audit consultations without seeing personal data.
 
     The English class name is persisted in the dedicated column so analytics
     aren't fragmented by language; the full bilingual + explainability
@@ -426,7 +444,7 @@ async def _persist_log(
     primary = top_conditions[0] if top_conditions else None
     log = SymptomLog(
         user_id=user_id,
-        raw_text=payload.text,
+        raw_text=db_text,
         predicted_condition=primary.name_en if primary else None,
         confidence_score=primary.confidence if primary else None,
         explanation_json=json.dumps(explanation_blob, ensure_ascii=False),

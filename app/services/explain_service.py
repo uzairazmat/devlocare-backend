@@ -8,25 +8,35 @@ Contract (per project document)::
         "rationale":          "<natural-language sentence>",
         "key_symptoms":       ["rash", "itching", ...],
         "feature_importance": [
-            {"feature": "rash",    "importance": 0.5},
-            {"feature": "itching", "importance": 0.5},
+            {"feature": "rash",    "importance": 0.92},
+            {"feature": "itching", "importance": 0.41},
             ...
         ],
         "confidence_breakdown": "<natural-language sentence>"
     }
 
-Design note
------------
-The pipeline now uses dense 384-D semantic embeddings
-(``sentence-transformers/all-MiniLM-L6-v2``) instead of TF-IDF, so SHAP
-attribution over individual dimensions is no longer human-interpretable
-("Dimension 42" is meaningless to a clinician). Until a token-level
-attribution layer is added, we surface the spaCy-extracted symptoms as the
-key drivers and assign each an equal dummy weight so the frontend bar chart
-still renders cleanly.
+Approach
+--------
+The pipeline uses dense 384-D semantic embeddings
+(``sentence-transformers/all-MiniLM-L6-v2``) into a calibrated classifier.
+SHAP attribution over individual embedding dimensions isn't human-readable
+("Dimension 42" means nothing to a clinician), so we use **LIME** over the
+input text instead: LIME perturbs the input (drops words at random),
+re-embeds each perturbation, queries ``classifier.predict_proba``, and fits
+a local linear surrogate. The resulting per-word weights ARE human-readable
+and tell us *which words drove the predicted class*.
+
+We surface those weights, normalised against the largest absolute weight, as
+``feature_importance`` so the frontend bar chart displays genuine ML
+interpretability data — not dummy uniform weights.
+
+If LIME is unavailable (package missing, stub model, empty input) we fall
+back to the spaCy-extracted symptoms with uniform weights so the response
+contract still holds.
 """
 from __future__ import annotations
 
+import asyncio
 import threading
 from typing import Any, Iterable, Literal
 
@@ -37,9 +47,41 @@ logger = get_logger(__name__)
 
 LanguageLiteral = Literal["English", "Urdu"]
 
-_DUMMY_IMPORTANCE = 0.5
 _MAX_FEATURE_BARS = 10
 _MAX_KEY_SYMPTOMS = 5
+
+# LIME tuning. ``num_samples`` is the number of perturbations LIME generates;
+# each one is encoded by the SentenceTransformer in a single batched call, so
+# the cost is ~one forward-pass over 500 short strings (~0.5-1 s on CPU).
+# Lower it to trade explanation stability for latency.
+_LIME_NUM_SAMPLES = 500
+_LIME_NUM_FEATURES = 10
+_FALLBACK_IMPORTANCE = 0.5
+
+# LIME unavailability is sticky — if the package isn't installed we don't
+# retry on every request.
+_lime_available: bool | None = None
+_lime_check_lock = threading.Lock()
+
+
+def _is_lime_available() -> bool:
+    global _lime_available
+    if _lime_available is not None:
+        return _lime_available
+    with _lime_check_lock:
+        if _lime_available is not None:
+            return _lime_available
+        try:
+            from lime.lime_text import LimeTextExplainer  # noqa: F401
+            _lime_available = True
+            logger.info("LIME explainability available.")
+        except Exception:  # noqa: BLE001
+            _lime_available = False
+            logger.warning(
+                "LIME not installed — feature_importance will fall back to "
+                "extracted symptoms with uniform weights.",
+            )
+    return _lime_available
 
 
 class ExplainService:
@@ -48,15 +90,15 @@ class ExplainService:
 
     Stateless — every call to :meth:`get_explanation` is pure. Kept as a class
     for API symmetry with the rest of the service layer and to make future
-    re-introduction of a learned attribution model straightforward.
+    swap-outs (e.g. SHAP over a token-attention model) straightforward.
     """
 
     async def get_explanation(
         self,
         text: str,
         top_predictions: list[dict[str, Any]],
-        vectorizer: Any = None,   # unused: kept for call-site compatibility
-        model: Any = None,        # unused: kept for call-site compatibility
+        vectorizer: Any = None,   # the SentenceTransformer embedder
+        model: Any = None,        # the calibrated classifier
         *,
         language: LanguageLiteral = "English",
         extracted_symptoms: Iterable[str] | None = None,
@@ -64,7 +106,7 @@ class ExplainService:
         top_condition_display_name: str | None = None,
     ) -> dict[str, Any]:
         """Build the UC-04 explanation dict for one prediction."""
-        del vectorizer, model, cleaned_text  # unused under the embedding pipeline
+        del cleaned_text  # text (post-PII redaction) is what LIME explains
 
         if not top_predictions:
             return self._empty_response(language)
@@ -76,10 +118,13 @@ class ExplainService:
 
         key_symptoms = self._dedupe(extracted_symptoms or [], _MAX_KEY_SYMPTOMS)
 
-        feature_importance = [
-            {"feature": s, "importance": _DUMMY_IMPORTANCE}
-            for s in key_symptoms[:_MAX_FEATURE_BARS]
-        ]
+        # Real LIME run when both the embedder and classifier are loaded.
+        feature_importance = await _compute_feature_importance(
+            ml_text=text,
+            embedder=vectorizer,
+            classifier=model,
+            fallback_features=key_symptoms,
+        )
 
         confidence_pct = max(0, min(100, round(top_confidence * 100)))
         if language == "Urdu":
@@ -92,8 +137,10 @@ class ExplainService:
             )
 
         logger.info(
-            "Explainability: lang=%s top=%r conf=%d%% key_symptoms=%d",
-            language, display_name, confidence_pct, len(key_symptoms),
+            "Explainability: lang=%s top=%r conf=%d%% key_symptoms=%d "
+            "lime_features=%d",
+            language, display_name, confidence_pct,
+            len(key_symptoms), len(feature_importance),
         )
 
         return {
@@ -186,6 +233,101 @@ def get_explain_service() -> ExplainService:
         if _default_service is None:
             _default_service = ExplainService()
     return _default_service
+
+
+# --------------------------------------------------------------------------- #
+# LIME wrapper                                                                 #
+# --------------------------------------------------------------------------- #
+async def _compute_feature_importance(
+    *,
+    ml_text: str,
+    embedder: Any,
+    classifier: Any,
+    fallback_features: list[str],
+) -> list[dict[str, float | str]]:
+    """
+    Run LIME against the embedder+classifier pipeline and return the
+    ``feature_importance`` payload. Falls back to ``fallback_features`` (the
+    spaCy-extracted symptoms) with uniform weights when LIME can't run.
+    """
+    if (
+        not ml_text
+        or embedder is None
+        or classifier is None
+        or not _is_lime_available()
+    ):
+        return _fallback_importance(fallback_features)
+
+    try:
+        # LIME's sampling + sklearn fitting is synchronous CPU work; off-load
+        # to a thread so we don't block the FastAPI event loop.
+        return await asyncio.to_thread(
+            _run_lime_sync, ml_text, embedder, classifier
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "LIME explanation failed — falling back to extracted symptoms.",
+        )
+        return _fallback_importance(fallback_features)
+
+
+def _run_lime_sync(
+    ml_text: str, embedder: Any, classifier: Any,
+) -> list[dict[str, float | str]]:
+    """Run LIME synchronously and return normalised top-N features."""
+    import numpy as np  # type: ignore
+    from lime.lime_text import LimeTextExplainer  # type: ignore
+
+    classes = list(getattr(classifier, "classes_", []))
+    if not classes:
+        return []
+    class_names = [str(c) for c in classes]
+
+    def predict_proba(texts: list[str]) -> "np.ndarray":
+        """LIME's classifier_fn: list[str] -> ndarray (n_samples, n_classes)."""
+        if not texts:
+            return np.empty((0, len(classes)))
+        embeddings = embedder.encode(list(texts), show_progress_bar=False)
+        return classifier.predict_proba(embeddings)
+
+    # Resolve the index of the predicted class once so we ask LIME for
+    # weights against the *right* label.
+    top_probs = predict_proba([ml_text])[0]
+    top_idx = int(np.argmax(top_probs))
+
+    explainer = LimeTextExplainer(class_names=class_names, bow=True)
+    explanation = explainer.explain_instance(
+        ml_text,
+        predict_proba,
+        num_features=_LIME_NUM_FEATURES,
+        num_samples=_LIME_NUM_SAMPLES,
+        labels=(top_idx,),
+    )
+
+    raw_features: list[tuple[str, float]] = explanation.as_list(label=top_idx)
+    if not raw_features:
+        return []
+
+    logger.debug("LIME raw weights for class %r: %s", class_names[top_idx], raw_features)
+
+    # Normalise against the largest absolute weight so the bar chart stays in
+    # [0, 1]. Sort by descending absolute weight — the most informative words
+    # surface first regardless of sign. We log the signed weights above so the
+    # sign isn't lost for diagnostics.
+    max_abs = max(abs(w) for _, w in raw_features) or 1.0
+    ranked = sorted(raw_features, key=lambda fw: abs(fw[1]), reverse=True)
+    return [
+        {"feature": word, "importance": min(1.0, abs(weight) / max_abs)}
+        for word, weight in ranked[:_MAX_FEATURE_BARS]
+    ]
+
+
+def _fallback_importance(features: list[str]) -> list[dict[str, float | str]]:
+    """Uniform-weight payload built from extracted symptoms."""
+    return [
+        {"feature": s, "importance": _FALLBACK_IMPORTANCE}
+        for s in features[:_MAX_FEATURE_BARS]
+    ]
 
 
 # --------------------------------------------------------------------------- #

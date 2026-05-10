@@ -2,12 +2,23 @@
 NLP preprocessing for UC-01 Symptom Prediction.
 
 Pipeline stages:
-    1.  clean_text()        — lowercase, strip noise, tokenize, remove stopwords
-    2.  extract_symptoms()  — spaCy matcher over a small symptom lexicon
+    1.  redact_pii()        — strip emails / phones / CNICs / SSNs / names
+    2.  clean_text()        — lowercase, strip noise, tokenize, remove stopwords
+    3.  extract_symptoms()  — spaCy matcher over a small symptom lexicon
 
 All heavy resources (NLTK stopwords, spaCy model) are loaded lazily on first
 call and cached. Failures degrade gracefully — e.g. if NLTK data isn't present
 we fall back to an in-file stopword list rather than 500ing.
+
+PII handling is *redaction*, not rejection. Two parallel outputs are produced:
+
+* ``ml_text``: PII matches deleted (replaced with a single space, then
+  whitespace collapsed). The ML model and LIME explainer see this — using a
+  ``[REDACTED]`` placeholder would poison the SentenceTransformer embedding,
+  whereas an empty replacement leaves clean symptom phrases.
+* ``db_text``: PII matches replaced with the literal token ``[REDACTED]``.
+  This goes into ``symptom_logs.raw_text`` so admins reviewing a consultation
+  can see *that* PII was present without seeing what it was.
 
 TF-IDF vectorisation lived here previously; the pipeline now uses
 sentence-transformers embeddings (see ``app.clients.ml_client``), so cleaned
@@ -89,6 +100,56 @@ _matcher: Any = None             # spaCy Matcher, or None
 
 
 _WORD_RE = re.compile(r"[a-z]+(?:'[a-z]+)?")
+_WS_RE = re.compile(r"\s+")
+
+# --------------------------------------------------------------------------- #
+# PII redaction patterns                                                       #
+# --------------------------------------------------------------------------- #
+# Order matters — specific patterns (CNIC, SSN, card runs) MUST run before the
+# generic phone pattern, otherwise the phone regex eats their digit groups.
+# Each entry is (label, compiled-pattern) so we can log what was hit if we
+# ever need to.
+_PII_REDACT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("email",       re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")),
+    ("cnic",        re.compile(r"\b\d{5}-\d{7}-\d\b")),                  # Pakistani CNIC
+    ("ssn",         re.compile(r"\b\d{3}-\d{2}-\d{4}\b")),                # US SSN
+    ("card_or_run", re.compile(r"(?:\d[\s-]?){13,19}")),                  # 13-19 digit runs
+    ("phone",       re.compile(r"\+?\d[\d\s\-()]{6,}\d")),                # phone-shaped
+    # Names: 2+ consecutive Title-cased words, each ≥3 chars. Heuristic only —
+    # users typically describe symptoms in lowercase so false positives in
+    # symptom text are rare. For higher fidelity, swap in spaCy NER over the
+    # PERSON entity label.
+    ("name",        re.compile(r"\b[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})+\b")),
+)
+_REDACTED_TOKEN = "[REDACTED]"
+
+
+def redact_pii(text: str) -> tuple[str, str]:
+    """
+    Redact PII from ``text`` and return ``(ml_text, db_text)``.
+
+    * ``ml_text`` — PII removed with a *space* (not a token), so the
+      SentenceTransformer embedding doesn't pick up a literal "[REDACTED]"
+      cluster that would distort cosine similarity. Whitespace is then
+      collapsed so we don't leave double-spaces behind.
+    * ``db_text`` — PII replaced with the explicit ``[REDACTED]`` marker,
+      stored in ``symptom_logs.raw_text``.
+
+    Patterns run in declared order; both outputs see the same set of matches
+    so they stay aligned semantically — the only difference is the
+    replacement string.
+    """
+    if not text:
+        return "", ""
+
+    ml_text, db_text = text, text
+    for _label, pattern in _PII_REDACT_PATTERNS:
+        ml_text = pattern.sub(" ", ml_text)
+        db_text = pattern.sub(_REDACTED_TOKEN, db_text)
+
+    ml_text = _WS_RE.sub(" ", ml_text).strip()
+    db_text = _WS_RE.sub(" ", db_text).strip()
+    return ml_text, db_text
 
 
 def _get_stopwords() -> frozenset[str]:

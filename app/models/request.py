@@ -80,15 +80,11 @@ class TokenResponse(BaseModel):
 # --------------------------------------------------------------------------- #
 # Symptom Prediction (UC-01)                                                   #
 # --------------------------------------------------------------------------- #
-
-# PII guard: e-mail, any digit-run >= 7 (phones, CNIC, card numbers),
-# Pakistani CNIC (#####-#######-#), 16-digit card groupings.
-_PII_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),                  # email
-    re.compile(r"\b\d{5}-\d{7}-\d\b"),                         # CNIC
-    re.compile(r"(?:\d[\s-]?){13,19}"),                        # card / long nums
-    re.compile(r"\+?\d[\d\s\-()]{6,}\d"),                      # phone
-)
+# NB: PII (emails, phones, CNICs, SSNs, card runs, names) used to be rejected
+# at this layer. It is now *redacted* further down the pipeline by
+# ``app.services.preprocess_service.redact_pii``, which produces a clean
+# ``ml_text`` for the model and a ``[REDACTED]``-marked ``db_text`` for the
+# audit log. Keep this docstring in sync with that contract.
 
 
 class SymptomTextRequest(BaseModel):
@@ -96,6 +92,9 @@ class SymptomTextRequest(BaseModel):
     Payload for POST /predict/text.
     `text` is a free-form symptom description. Metadata is optional and is
     used for personalization/triage (pregnancy, age, chronic disease etc.).
+
+    Free-text is *not* validated for PII at this layer — see the redaction
+    pipeline in ``preprocess_service.redact_pii``.
     """
 
     text: str = Field(min_length=5, max_length=500)
@@ -121,18 +120,6 @@ class SymptomTextRequest(BaseModel):
     )
 
     model_config = ConfigDict(str_strip_whitespace=True)
-
-    @field_validator("text")
-    @classmethod
-    def _block_pii(cls, v: str) -> str:
-        """Reject input that appears to contain PII."""
-        for pattern in _PII_PATTERNS:
-            if pattern.search(v):
-                raise ValueError(
-                    "Personal information (email, phone, CNIC or card number) "
-                    "is not allowed in symptom text."
-                )
-        return v
 
 
 # --------------------------------------------------------------------------- #

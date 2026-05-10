@@ -115,9 +115,22 @@ queries; super-admin bootstrapped from env at first boot.
 - `User` exposes `is_admin` and `is_super_admin` — use these for routing.
 
 ### Hard PII rules (enforced server-side, replicate client-side)
-Free-text input is rejected if it matches any of: email pattern, Pakistani
-CNIC `#####-#######-#`, 13–19 digit card-like runs, phone-shaped strings.
-Show the user a friendly inline error before submit.
+Free-text input is **redacted**, not rejected. The redactor in
+`app/services/preprocess_service.py::redact_pii` strips emails, phones,
+Pakistani CNICs (`#####-#######-#`), US SSNs (`###-##-####`), 13–19 digit
+card-like runs, and likely person names (consecutive Title-Case words). It
+returns two parallel strings:
+
+* `ml_text` — PII deleted (no placeholder token, since `[REDACTED]` would
+  poison the SentenceTransformer embedding). This is what the classifier
+  and the LIME explainer see.
+* `db_text` — PII replaced with the literal `[REDACTED]`. This is what
+  `symptom_logs.raw_text` stores so admin reviewers can see *that* PII was
+  present without seeing the actual values.
+
+The client should still show a friendly inline notice before submit so the
+user knows their input will be redacted, but the form does not need to
+block submission.
 
 ---
 

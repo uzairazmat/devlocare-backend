@@ -23,6 +23,7 @@ sentence-transformers
 
 # --- Explainability (UC-04) ---
 shap
+lime
 
 # --- PDF export (UC-06 History) ---
 reportlab
