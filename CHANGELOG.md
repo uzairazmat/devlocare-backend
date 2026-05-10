@@ -22,6 +22,120 @@ Tracking work that's queued but not yet shipped:
 
 ---
 
+## [1.5.0] — 2026-05-10 — Confidence calibration + out-of-domain guard
+
+### Added
+- **`app/utils/confidence_utils.py`** — single source of truth for
+  confidence calibration. Maps raw multi-class classifier probability
+  (typically ≤ 0.6 on confident predictions, because mass is spread across
+  hundreds of classes) onto the 80–99 % visual band a clinician expects via
+  a 13-point piecewise-linear anchor table. The mapping preserves prediction
+  *ordering* while producing human-readable percentages.
+- **Out-of-domain guard** in `prediction_service`. When the spaCy symptom
+  extractor finds zero symptoms **and** the cleaned input is fewer than 5
+  tokens (e.g. "hey", "ok thanks"), the classifier is skipped entirely and
+  the system falls back to a follow-up question. Without this guard the
+  classifier always emits a top-1 class — even for greetings — and
+  calibration would amplify that into a confident-looking diagnosis.
+
+### Changed
+- **Calibrated confidence is now the single source of truth** downstream of
+  the threshold gate. Raw predictions from the ML client are immediately
+  overwritten with their calibrated values so every consumer (DB row, LIME
+  rationale, `confidence_status` snapshot, API response, PDF, admin
+  dashboard) reads the same number. Previously the raw value leaked into
+  some paths.
+- `PREDICTION_CONFIDENCE_THRESHOLD` in `.env` is now interpreted in
+  **calibrated space** (e.g. `0.80` = "promote once displayed confidence
+  ≥ 80 %"). No transformation is applied; the env value is compared
+  directly against the calibrated top-1.
+
+---
+
+## [1.4.0] — 2026-05-10 — Stateful multi-turn chat
+
+Rewrote the follow-up loop so conversation history persists across HTTP
+requests, enabling a true stateful chat rather than stateless single-shot
+Q&A.
+
+### Added
+- **`chat_history` column on `symptom_logs`** (JSON array). Stores
+  alternating `user` / `assistant` turn objects so the full conversation
+  can be reconstructed from a single row. Column is added via an
+  automatic migration in `app/db/session.py` on startup (no Alembic step
+  required for this change).
+- **`log_id` parameter on `POST /predict/text`**. Pass the `log_id`
+  returned from the first turn to continue an existing conversation.
+  Omit it (or pass `null`) to start a new session.
+- **`app/utils/followups.py`** — pool of non-repeating empathetic follow-up
+  questions. The service tracks which questions have already been asked
+  (via `asked_so_far` from persisted history) and never repeats one in a
+  session.
+- **`confidence_status` field on `PredictionResponse`** — exposes
+  `current_topk` (calibrated top-1 confidence so far) and `required_topk`
+  (the configured threshold) on every response, including follow-up turns.
+  The frontend uses this to render a confidence progress indicator.
+- **`chat_history` returned from `GET /history/{log_id}`** so the frontend
+  can replay the full conversation when a user revisits a saved session.
+- New env vars: `PREDICTION_CONFIDENCE_THRESHOLD`, `FOLLOWUP_MAX_TURNS`
+  (kept for reference; max-turn cap removed — threshold is the sole gate),
+  documented in `.env.example`.
+
+### Changed
+- **Confidence threshold is now the sole finalization condition.** The
+  previous hard-coded maximum follow-up count (`MAX_FOLLOWUPS = 3`) is
+  removed. The conversation continues until the calibrated top-1 crosses
+  `PREDICTION_CONFIDENCE_THRESHOLD` (default `0.80`).
+- `PredictionResponse` prediction fields (`top_conditions`,
+  `triage_level`, `recommended_specialist`, etc.) are now **optional** so
+  the same schema covers both follow-up turns (no prediction yet) and
+  final turns (full prediction payload).
+- `app/core/config.py` gains `PREDICTION_CONFIDENCE_THRESHOLD` and
+  related settings.
+
+---
+
+## [1.3.0] — 2026-05-10 — Real LIME explainability + PII redaction pipeline
+
+Replaced dummy uniform feature-importance weights with genuine LIME
+attributions, and moved PII handling from rejection to silent redaction.
+
+### Added
+- **LIME explanations** in `app/services/explain_service.py`. The service
+  now wraps the SentenceTransformer embedder + calibrated classifier in a
+  `LimeTextExplainer`. LIME generates 500 text perturbations (words dropped
+  at random), re-embeds each, queries `predict_proba`, and fits a local
+  linear surrogate. The resulting per-word weights — normalised against the
+  largest absolute weight — are surfaced as `feature_importance` in the API
+  response and admin consultation detail. Previously all weights were a
+  dummy uniform 0.5.
+- Graceful fallback: if `lime` is not installed (or the model is in stub
+  mode or the input is empty), `feature_importance` falls back to the
+  spaCy-extracted symptoms with uniform weights so the response contract
+  always holds. LIME availability is checked once at startup and cached.
+- **`app/services/preprocess_service.redact_pii()`** — server-side PII
+  redactor producing two parallel strings:
+  - `ml_text`: PII deleted (no placeholder) so the SentenceTransformer
+    embedding is not poisoned.
+  - `db_text`: PII replaced with `[REDACTED]` for admin audit logs.
+  Patterns covered: email addresses, Pakistani CNICs (`#####-#######-#`),
+  US SSNs (`###-##-####`), card-like digit runs (13–19 digits), phone
+  numbers, and consecutive Title-Case word pairs (likely names).
+
+### Changed
+- **`SymptomTextRequest` no longer rejects PII** at the Pydantic validation
+  layer. The `_block_pii` field validator and the `_PII_PATTERNS` tuple in
+  `app/models/request.py` are removed. Redaction now happens inside the
+  prediction pipeline so users are never shown a hard validation error for
+  PII in their symptom text.
+- `explain_service.get_explanation` now accepts `vectorizer` (the
+  SentenceTransformer) and `model` (the calibrated classifier) as live
+  references rather than unused stubs, enabling LIME to call
+  `predict_proba` directly.
+- `lime` added to `requirements.txt`.
+
+---
+
 ## [1.2.0] — 2026-05-03 — UX completeness round
 
 Added the endpoint the frontend's history-detail page needs, plus the
