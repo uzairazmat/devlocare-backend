@@ -30,6 +30,7 @@ from app.db.session import get_db
 from app.models.request import HistoryExportRequest
 from app.models.response import (
     CareTipsBilingual,
+    ChatTurn,
     Explanation,
     FeatureImportance,
     HistoryItem,
@@ -342,6 +343,7 @@ def _hydrate_prediction(row: SymptomLog) -> PredictionResponse:
         language=language,
         raw_text=row.raw_text,
         created_at=row.created_at,
+        chat_history=_extract_chat_history(row.chat_history),
         top_conditions=top_conditions,
         triage_level=triage,
         recommended_specialist=primary.specialist_type if primary else None,
@@ -351,6 +353,33 @@ def _hydrate_prediction(row: SymptomLog) -> PredictionResponse:
         explanation=explanation,
         disclaimer=get_disclaimer(language),
     )
+
+
+def _extract_chat_history(raw: object) -> list[ChatTurn]:
+    """
+    Project the persisted ``chat_history`` JSON into the public ChatTurn
+    shape, dropping the internal ``ml_text`` field. Tolerates legacy rows
+    where the column is missing, ``None``, or a JSON string.
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (TypeError, ValueError):
+            return []
+    if not isinstance(raw, list):
+        return []
+
+    out: list[ChatTurn] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        role = entry.get("role")
+        text = entry.get("text")
+        if role in ("user", "assistant") and isinstance(text, str):
+            out.append(ChatTurn(role=role, text=text))
+    return out
 
 
 def _preview(text: str | None) -> str:

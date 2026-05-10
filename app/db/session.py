@@ -50,12 +50,14 @@ async def init_db() -> None:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         await _ensure_user_role_columns()
+        await _ensure_symptom_log_columns()
         logger.info("SQLite database ready.")
     else:
         logger.info("Verifying database connection...")
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         await _ensure_user_role_columns()
+        await _ensure_symptom_log_columns()
         logger.info("Database connection successful.")
 
 
@@ -98,6 +100,41 @@ async def _ensure_user_role_columns() -> None:
                 await conn.exec_driver_sql(
                     f"ALTER TABLE users ADD COLUMN {col} {ddl}"
                 )
+
+
+async def _ensure_symptom_log_columns() -> None:
+    """
+    Idempotent column-add for the stateful chat rollout.
+
+    ``chat_history`` is JSON in Postgres / TEXT in SQLite (SQLAlchemy's
+    ``JSON`` type serialises both transparently). Safe to run on every boot.
+    """
+    chat_ddl = "TEXT" if settings.is_sqlite else "JSON"
+
+    async with engine.begin() as conn:
+        if settings.is_sqlite:
+            existing = {
+                row[1]
+                for row in (
+                    await conn.exec_driver_sql("PRAGMA table_info(symptom_logs)")
+                ).all()
+            }
+        else:
+            rows = (
+                await conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'symptom_logs'"
+                    )
+                )
+            ).all()
+            existing = {r[0] for r in rows}
+
+        if "chat_history" not in existing:
+            logger.info("Migration: adding symptom_logs.chat_history")
+            await conn.exec_driver_sql(
+                f"ALTER TABLE symptom_logs ADD COLUMN chat_history {chat_ddl}"
+            )
 
 
 async def get_db():

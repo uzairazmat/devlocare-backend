@@ -93,11 +93,23 @@ class SymptomTextRequest(BaseModel):
     `text` is a free-form symptom description. Metadata is optional and is
     used for personalization/triage (pregnancy, age, chronic disease etc.).
 
+    ``log_id`` enables the stateful chat flow: omit it to start a new
+    consultation, or pass the id returned by the previous response to keep
+    appending to the same thread until the model is confident enough to
+    finalise a prediction.
+
     Free-text is *not* validated for PII at this layer — see the redaction
     pipeline in ``preprocess_service.redact_pii``.
     """
 
     text: str = Field(min_length=5, max_length=500)
+    log_id: int | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Existing consultation id to continue. Omit to begin a new chat."
+        ),
+    )
     age: int | None = Field(default=None, ge=0, le=120)
     sex: SexLiteral | None = None
     duration: str | None = Field(

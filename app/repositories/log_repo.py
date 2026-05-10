@@ -27,6 +27,18 @@ async def get_by_id(db: AsyncSession, log_id: int) -> SymptomLog | None:
     return await db.get(SymptomLog, log_id)
 
 
+async def save(db: AsyncSession, log: SymptomLog) -> SymptomLog:
+    """
+    Commit pending changes on an attached SymptomLog and refresh its state.
+    Used by the stateful chat flow to persist intermediate updates
+    (chat_history appends, prediction finalisation) without re-adding the
+    row to the session.
+    """
+    await db.commit()
+    await db.refresh(log)
+    return log
+
+
 # --------------------------------------------------------------------------- #
 # UC-06 — History sidebar                                                      #
 # --------------------------------------------------------------------------- #

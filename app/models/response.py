@@ -139,14 +139,50 @@ MEDICAL_DISCLAIMER = MEDICAL_DISCLAIMER_EN
 # --------------------------------------------------------------------------- #
 # Top-level prediction response                                                #
 # --------------------------------------------------------------------------- #
+class ChatTurn(BaseModel):
+    """
+    One turn in the back-and-forth between the patient and the assistant.
+    The ``user`` text is PII-redacted (``[REDACTED]`` placeholders); the
+    ``assistant`` text is either the chosen follow-up question or the
+    closing acknowledgement before the final assessment.
+    """
+
+    role: Literal["user", "assistant"]
+    text: str
+
+
+class ConfidenceStatus(BaseModel):
+    """
+    Live snapshot of the threshold gate driving the chat flow.
+
+    * ``current_topk`` — top-1 calibrated probability the classifier produced
+      on the combined user text *for this turn*.
+    * ``required_topk`` — the configured ``PREDICTION_CONFIDENCE_THRESHOLD``;
+      once ``current_topk`` reaches it, the assistant finalises instead of
+      asking another follow-up.
+    """
+
+    current_topk: float = Field(ge=0.0, le=1.0)
+    required_topk: float = Field(ge=0.0, le=1.0)
+
+
 class PredictionResponse(BaseModel):
     """
-    Final response for POST /predict/text.
+    Response for POST /predict/text.
 
-    The top-level fields (`recommended_specialist`, `care_tips`, `red_flags`)
-    duplicate the primary condition's enrichment so simple clients only need
-    to read the root of the response. Multi-condition clients should iterate
-    `top_conditions` instead — every entry is independently enriched.
+    The endpoint serves two flows on the same shape:
+
+    * ``requires_followup=True`` — the model isn't confident yet. The
+      assistant's question is in ``followup_message`` and ``log_id`` keeps
+      the conversation pinned to a single DB row. Triage / explanation /
+      enrichment fields are filler-only so the client can render the chat
+      without branching on shape.
+    * ``requires_followup=False`` — final assessment. ``top_conditions``,
+      ``triage_level`` and ``explanation`` are real and usable.
+
+    Top-level enrichment fields (`recommended_specialist`, `care_tips`,
+    `red_flags`) duplicate the primary condition so simple clients only need
+    to read the root of the response.
     """
 
     log_id: int | None = None
@@ -159,15 +195,21 @@ class PredictionResponse(BaseModel):
     raw_text: str | None = None
     created_at: datetime | None = None
 
-    top_conditions: list[TopCondition]
+    # Stateful chat flow.
+    requires_followup: bool = False
+    followup_message: str | None = None
+    chat_history: list[ChatTurn] = Field(default_factory=list)
+    confidence_status: ConfidenceStatus | None = None
 
-    triage_level: TriageLevel
+    top_conditions: list[TopCondition] = Field(default_factory=list)
+
+    triage_level: TriageLevel | None = None
     recommended_specialist: str | None = None
     care_tips: CareTipsBilingual = Field(default_factory=CareTipsBilingual)
     red_flags: list[str] = Field(default_factory=list)
 
     extracted_symptoms: list[str] = Field(default_factory=list)
-    explanation: Explanation
+    explanation: Explanation | None = None
     disclaimer: str = MEDICAL_DISCLAIMER_EN
 
 

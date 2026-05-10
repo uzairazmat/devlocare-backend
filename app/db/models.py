@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Boolean, Column, Integer, String, Text, Float, DateTime,
+    Boolean, Column, Integer, String, Text, Float, DateTime, JSON,
     ForeignKey, CheckConstraint, Index, UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
@@ -57,6 +57,12 @@ class SymptomLog(Base):
     confidence_score = Column(Float)
     explanation_json = Column(Text)
     triage_level = Column(String(20))
+    # Conversation thread for the stateful chat flow. Each entry is
+    # ``{"role": "user" | "assistant", "text": str}`` plus an internal
+    # ``ml_text`` field on user turns (PII-stripped without placeholder so the
+    # SentenceTransformer isn't poisoned by ``[REDACTED]`` tokens). The
+    # client-facing API strips ``ml_text`` before returning.
+    chat_history = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="logs")

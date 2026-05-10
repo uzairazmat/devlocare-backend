@@ -22,6 +22,20 @@ class Settings(BaseSettings):
 
     DEFAULT_LANGUAGE: str = "English"
 
+    # ----- Stateful chat / prediction confidence --------------------------- #
+    # Top-1 calibrated probability below this threshold triggers a follow-up
+    # question instead of the final assessment. The threshold is the ONLY
+    # gate — the chat keeps asking clarifying questions until confidence
+    # reaches it. Range [0, 1].
+    PREDICTION_CONFIDENCE_THRESHOLD: float = 0.55
+
+    # ----- Explainability feature importance ------------------------------- #
+    # LIME returns weights for every word it samples, including stopwords
+    # ("I", "my", "on"). Anything below this normalised threshold is dropped
+    # before the response is sent so the bar chart only shows clinically
+    # meaningful tokens. Range [0, 1]; 0 disables filtering.
+    FEATURE_IMPORTANCE_THRESHOLD: float = 0.40
+
     # ----- Rate limiting (slowapi) ----------------------------------------- #
     # Set to false to disable rate limiting entirely (useful in tests). The
     # per-endpoint limits below are read at app startup; tweak per env.

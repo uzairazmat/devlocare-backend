@@ -40,6 +40,7 @@ import asyncio
 import threading
 from typing import Any, Iterable, Literal
 
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.response import Explanation, FeatureImportance
 
@@ -316,10 +317,16 @@ def _run_lime_sync(
     # sign isn't lost for diagnostics.
     max_abs = max(abs(w) for _, w in raw_features) or 1.0
     ranked = sorted(raw_features, key=lambda fw: abs(fw[1]), reverse=True)
-    return [
-        {"feature": word, "importance": min(1.0, abs(weight) / max_abs)}
-        for word, weight in ranked[:_MAX_FEATURE_BARS]
-    ]
+    threshold = max(0.0, min(1.0, float(settings.FEATURE_IMPORTANCE_THRESHOLD)))
+    filtered: list[dict[str, float | str]] = []
+    for word, weight in ranked:
+        importance = min(1.0, abs(weight) / max_abs)
+        if importance < threshold:
+            continue
+        filtered.append({"feature": word, "importance": importance})
+        if len(filtered) >= _MAX_FEATURE_BARS:
+            break
+    return filtered
 
 
 def _fallback_importance(features: list[str]) -> list[dict[str, float | str]]:
